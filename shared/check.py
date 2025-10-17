@@ -28,10 +28,9 @@ class RedirectedStdout:
 """ + code + """
 """ + testCode + """
 def main():
-    __magic_string__ = '__magic_string__'
+    unittestOutput = StringIO()
     ret = {'count' : 0, 'errors': [], 'failures': []}
     try:
-        unittestOutput = StringIO()
         suite = unittest.TestLoader().loadTestsFromTestCase(Checker)
         runner = unittest.TextTestRunner(verbosity=0, stream=unittestOutput)
         result = runner.run(suite)
@@ -42,10 +41,12 @@ def main():
             ret['failures'].append(str(failure))
     except Exception as e:
         ret['errors'].append(str(e))
-    print(f'{__magic_string__}{json.dumps(ret)}')
+    return ret
 
 if __name__ == '__main__':
-    main()
+    __magic_string__ = '__magic_string__'
+    ret = main()
+    print(f'{__magic_string__}{json.dumps(ret, separators=(',', ':'))}')
 """
 
     jobe = JobeWrapper(server)

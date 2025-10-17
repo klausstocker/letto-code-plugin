@@ -13,7 +13,7 @@ class CheckResult():
         return CheckResult(json.loads(resultJson))
 
     def wasSuccessful(self):
-        return (len(self.failures) == len(self.errors) == 0)
+        return len(self.failures) == 0 and len(self.errors) == 0
 
     def __repr__(self):
         ret = ''

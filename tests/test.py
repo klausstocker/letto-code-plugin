@@ -63,7 +63,7 @@ def main():
             ret['failures'].append(str(failure))
     except Exception as e:
         ret['errors'].append(str(e))
-    resultJson = 'some invalid text' + __magic_string__ + json.dumps(ret)
+    resultJson = 'some invalid text' + __magic_string__ + json.dumps(ret, separators=(',', ':'))
     result = CheckResult.from_str(resultJson)
     print(result)
 

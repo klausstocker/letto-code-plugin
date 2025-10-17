@@ -47,12 +47,13 @@ class RunResult():
         self.stderr =  ro['stderr'] if ro['stderr'] else None
 
     def __repr__(self):
-        if not self.success():
-            return 'Error while running code.'
         out = self.outcome()
-        ret = f'outcome: {out[0]}: {out[1]}\n'
-        ret += f'Compiler output: {self.cmpinfo}\n' if self.cmpinfo else ''
-        ret += f'stdout: {self.stdout}\n' if self.stdout else ''
+        ret = ''
+        if self.success():
+            ret += (self.stdout+'\n') if self.stdout else ''
+        else:
+            ret = f'Error while running code: {out[1]}\n'
+            ret += f'Compiler output: {self.cmpinfo}\n' if self.cmpinfo else ''
         ret += f'stderr: {self.stderr}\n' if self.stderr else ''
         return ret
 
@@ -88,7 +89,7 @@ class JobeWrapper():
         }
 
         resource = f'{RESOURCE_BASE}/runs'
-        data = json.dumps({ 'run_spec' : runspec })
+        data = json.dumps({ 'run_spec' : runspec }, separators=(',', ':'))
         result = self.do_http('POST', resource, data)
         return RunResult(result)
 
