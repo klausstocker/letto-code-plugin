@@ -1,7 +1,6 @@
 include:
   - docker-compose-traefik.yml
 
-  - docker-compose-python-app.yml
   - docker-compose-flask-app.yml
   - docker-compose-fastapi.yml
 
