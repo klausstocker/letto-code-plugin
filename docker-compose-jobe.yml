@@ -1,0 +1,9 @@
+services:
+  jobe:
+    image: trampgeek/jobeinabox:latest
+    container_name: jobe
+    restart: always
+    ports:
+      - "4000:80"
+    networks:
+      - backnet

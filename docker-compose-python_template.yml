@@ -1,0 +1,15 @@
+services:
+  python:
+    build:
+      dockerfile: ./${DOCKERFILE}
+    restart: always
+    stdin_open: true # docker run -i
+    tty: true        # docker run -t
+    environment:
+      - PRODUCTION=${PRODUCTION}
+    volumes:
+      - ./shared:/usr/src/shared:volume-nocopy
+      - ./.env:/usr/.env:ro
+      - /etc/localtime:/etc/localtime
+    networks:
+      - backnet

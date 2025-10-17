@@ -1,0 +1,26 @@
+services:
+  flet:
+    extends:
+      file: docker-compose-python_template.yml
+      service: python
+    build:
+      context: ./frontend/flask
+    container_name: flask-app
+    restart: always
+    ports:
+      - "${PORT_FLASK}:${PORT_FLASK}"
+    volumes:
+      - ./frontend/flask/log:/usr/src/app/log
+      - ./frontend/flask/src:/usr/src/app/src:volume-nocopy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.flask-app.rule=Host(`${SUBDOMAIN_FLASK}${DOMAIN}`)"
+      - "traefik.http.routers.flask-app.entrypoints=websecure"
+      - "traefik.http.services.flask-app.loadbalancer.server.port=${PORT_FLASK}"
+      - "traefik.http.routers.flask-app.tls.certresolver=letsencrypt"
+    command:
+      - /bin/sh
+      - -c
+      - |
+        cd /usr/src/app/src
+        gunicorn -w 4 -b 0.0.0.0:${PORT_FLASK} 'app:app'

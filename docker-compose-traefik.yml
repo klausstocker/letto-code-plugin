@@ -1,0 +1,34 @@
+services:
+  traefik:
+    build:
+      context: ./.traefik
+      dockerfile: Dockerfile
+    container_name: traefik
+    restart: always
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./.traefik/public-certificates:/certificates"
+    command:
+      - "--providers.docker=true"
+      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.email=${EMAIL})"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`${SUBDOMAIN_TRAEFIK_DASH}${DOMAIN}`) && (PathPrefix(`/`))"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.middlewares=basic-auth-global"
+      # https://doc.traefik.io/traefik/middlewares/http/basicauth/
+      # !! Important Note !! When used in docker-compose.yml all dollar signs in the hash NEED TO BE DOUBLED for escaping.
+      # To create a user:password pair, the following command can be used:
+      # echo $(htpasswd -nb user password) | sed -e s/\\$/\\$\\$/g
+      # Also note that dollar signs should NOT be doubled when they not evaluated (e.g. Ansible docker_container module).
+      # hash generator can be found here: https://bcrypt-generator.com/
+      # Default password: admin
+      - "traefik.http.middlewares.basic-auth-global.basicauth.users=${TRAEFIK_USER}:${TRAEFIK_PASSWORD_HASH}"
+    networks:
+      - backnet

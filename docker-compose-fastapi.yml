@@ -1,0 +1,26 @@
+services:
+  api-fastapi-sqlmodel:
+    extends:
+      file: docker-compose-python_template.yml
+      service: python
+    build:
+      context: backend/api-fastapi
+    container_name: api-fastapi
+    restart: always
+    # ports:
+    #  - "${PORT_API}:${PORT_API}"
+    volumes:
+      - ./backend/api-fastapi/log:/usr/src/app/log
+      - ./backend/api-fastapi/src:/usr/src/app/src:volume-nocopy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api-fastapi.rule=Host(`${SUBDOMAIN_API}${DOMAIN}`)"
+      - "traefik.http.routers.api-fastapi.entrypoints=websecure"
+      - "traefik.http.services.api-fastapi.loadbalancer.server.port=${PORT_API}"
+      - "traefik.http.routers.api-fastapi.tls.certresolver=letsencrypt"
+    command:
+      - /bin/sh
+      - -c
+      - |
+        cd /usr/src/app/src
+        uvicorn main:api --reload --workers 1 --host "0.0.0.0" --port ${PORT_API} --proxy-headers

@@ -1,0 +1,22 @@
+/backend/*/log
+/frontend/*/log
+/.venv/
+/.traefik/public-certificates/
+/.portainer_data/
+_suggestions.md
+_readme-emojies.md
+docker-compose-postgres_future.yml
+docker-compose-postgREST_original.yml
+/.node-red/
+/.influxdb/
+/.grafana/
+/.postgres/
+/.api-mqtt-gateway
+docker-compose-restful-api.yml
+# docker-compose-wordpress.yml
+# /backend/api-restful/
+docker-compose-supertokens.yml
+/backend/api-fastapi-pure-sql/
+/.mosquitto/config/pid
+*.pyc
+/.mariadb/db_data
