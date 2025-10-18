@@ -3,13 +3,15 @@ from shared.check_result import CheckResult
 import unittest
 import json
 
-def checkCode(server, code, testCode):
-    code = """
+__imports__ = """
 import unittest
 import sys
 from io import StringIO
 import json
+"""
 
+def checkCode(server, code, testCode):
+    code2run = code + __imports__ + testCode + """
 class RedirectedStdout:
     def __init__(self):
         self._stdout = None
@@ -25,22 +27,21 @@ class RedirectedStdout:
 
     def __str__(self):
         return self._string_io.getvalue()
-""" + code + """
-""" + testCode + """
+
 def main():
     unittestOutput = StringIO()
-    ret = {'count' : 0, 'errors': [], 'failures': []}
+    ret = {'count' : 0, 'errors': [], 'failures': [], 'exceptions': []}
     try:
         suite = unittest.TestLoader().loadTestsFromTestCase(Checker)
         runner = unittest.TextTestRunner(verbosity=0, stream=unittestOutput)
         result = runner.run(suite)
         ret['count'] = result.testsRun
         for error in result.errors:
-            ret['errors'].append(str(error))
+            ret['errors'].append(error)
         for failure in result.failures:
-            ret['failures'].append(str(failure))
+            ret['failures'].append(failure)
     except Exception as e:
-        ret['errors'].append(str(e))
+        ret['exceptions'].append(e)
     return ret
 
 if __name__ == '__main__':
@@ -48,9 +49,8 @@ if __name__ == '__main__':
     ret = main()
     print(f'{__magic_string__}{json.dumps(ret, separators=(',', ':'))}')
 """
-
     jobe = JobeWrapper(server)
-    result = jobe.run_test('python3', code, 'test.py')
+    result = jobe.run_test('python3', code2run, 'test.py')
     if not result.success():
         return CheckResult({'count': 0, 'errors': ['error running code']})
-    return CheckResult.from_str(result.stdout)
+    return CheckResult.from_str(result.stdout, (code + __imports__).count('\n'))

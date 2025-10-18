@@ -53,3 +53,21 @@ class Checker(unittest.TestCase): # do not rename
         self.assertEqual(result.count, 2)
         self.assertTrue(result.wasSuccessful())
 
+    def testUpload(self):
+        jobe = JobeWrapper('localhost:4000')
+        fileId = 'B00WHrZtSjfile1gasdfaserscasdfaserasdfaserqwcasrweas'
+        self.assertIsNone(jobe.put_file(fileId, 'inhalt'))
+        self.assertTrue(jobe.check_file(fileId))
+
+    def testWithFiles(self):
+        files = [('file1', 'The first file\nLine 2'),
+                 ('file2', 'Second file')]
+        code = """
+print(open('file1').read())
+print(open('file2').read())
+"""
+        fileSpec = JobeWrapper.createFiles(files)
+        jobe = JobeWrapper('localhost:4000')
+        result = jobe.run_test('python3', code, 'test.py', fileSpec)
+        self.assertTrue(result.success())
+        self.assertEqual(result.stdout, "The first file\nLine 2\nSecond file\n")

@@ -24,7 +24,7 @@ class RedirectedStdout:
         return self._string_io.getvalue()
 
 def student_sum(a, b):
-    print('Die Summe ist ' + str(a + b))
+    print('Die Summe ist  ' + str(a + b))
     return a + b
 
 def correctImplementation(arg1, arg2):

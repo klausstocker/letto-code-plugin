@@ -1,6 +1,8 @@
 from urllib.error import HTTPError
 import json
 import http.client
+import base64
+import uuid
 
 RESOURCE_BASE = '/jobe/index.php/restapi'
 
@@ -26,7 +28,8 @@ class RunResult():
         17: 'Memory limit exceeded',
         19: 'Illegal system call',
         20: 'Internal error, please report',
-        21: 'Server overload'}
+        21: 'Server overload',
+        99: 'file error'}
 
     def outcome(self):
         if self._outcome in RunResult.outcomes:
@@ -42,9 +45,9 @@ class RunResult():
             self._outcome = 1
             return
         self._outcome = ro['outcome']
-        self.cmpinfo = ro['cmpinfo'] if ro['cmpinfo'] else None
-        self.stdout =  ro['stdout'] if ro['stdout'] else None
-        self.stderr =  ro['stderr'] if ro['stderr'] else None
+        self.cmpinfo = ro['cmpinfo'] if 'cmpinfo' in ro else None
+        self.stdout =  ro['stdout'] if 'stdout' in ro else None
+        self.stderr =  ro['stderr'] if 'stderr' in ro else None
 
     def __repr__(self):
         out = self.outcome()
@@ -66,9 +69,19 @@ def trim(s):
     else:
         return s
 
+
 class JobeWrapper():
     def __init__(self, server):
         self.server = server
+
+    @staticmethod
+    def createFiles(files: list[tuple]):
+        commonId = uuid.uuid4().hex
+        filesWithId = []
+        for name, content in files:
+            fileId = f'{commonId[:10]}{name}'
+            filesWithId.append((fileId, name, content))
+        return filesWithId
 
     def http_request(self, method, resource, data, headers):
         '''Send a request to Jobe with given HTTP method to given resource on
@@ -78,29 +91,38 @@ class JobeWrapper():
         connect.request(method, resource, data, headers)
         return connect
 
-
-    def run_test(self, language, code, filename):
+    def run_test(self, language, code, sourceFilename, files=[]):
         '''Execute the given code in the given language.
         Return the result object.'''
         runspec = {
             'language_id': language,
-            'sourcefilename': filename,
+            'sourcefilename': sourceFilename,
             'sourcecode': code,
+            'file_list': []
         }
+        
+        for fileId, name, content in files:
+            if self.put_file(fileId, content):
+                return RunResult({'outcome': 99, 'stderr': f'could not upload file {name}'})
+            exists = self.check_file(fileId)
+            if not exists:
+                return RunResult({'outcome': 99, 'stderr': f'could not verify file {name}'})
+            runspec['file_list'].append((fileId, name))
 
         resource = f'{RESOURCE_BASE}/runs'
         data = json.dumps({ 'run_spec' : runspec }, separators=(',', ':'))
-        result = self.do_http('POST', resource, data)
+        headers = {"Content-type": "application/json; charset=utf-8",
+                "Accept": "application/json"}
+        result = self.do_http('POST', resource, headers, data)
         return RunResult(result)
 
 
-    def do_http(self, method, resource, data=None):
+    def do_http(self, method, resource, headers, data=None):
         """Send the given HTTP request to Jobe, return json-decoded result as
         a dictionary (or the empty dictionary if a 204 response is given).
         """
         result = {}
-        headers = {"Content-type": "application/json; charset=utf-8",
-                "Accept": "application/json"}
+
         try:
             connect = self.http_request(method, resource, data, headers)
             response = connect.getresponse()
@@ -127,6 +149,44 @@ class JobeWrapper():
         ret = {lang: version for lang, version in lang_versions}
         return ret
     
+    def put_file(self, file_id: str, contents: str):
+        ret = None
+        contentsb64 = base64.b64encode(contents.encode('utf8')).decode(encoding='UTF-8')
+        data = json.dumps({ 'file_contents' : contentsb64 })
+        resource = f'{RESOURCE_BASE}/files/{file_id}'
+        headers = {"Content-type": "application/text",
+                "Accept": "text/plain"}
+        connect = self.http_request('PUT', resource, data, headers)
+        response = connect.getresponse()
+        if response.status != 204:
+            ret = f"{response.status} {response.reason}"
+            print(f"Response to putting {file_id}: {ret}")
+        connect.close()
+        return ret
+
+    def check_file(self, file_id):
+        '''Checks if the given fileid exists on the server.
+        Returns status: 204 denotes file exists, 404 denotes file not found.
+        '''
+
+        resource = f'{RESOURCE_BASE}/files/{file_id}'
+        headers = {"Accept": "text/plain"}
+        try:
+            connect = self.http_request('HEAD', resource, '', headers)
+            response = connect.getresponse()
+
+            if response.status != 204:
+                content =  response.read(4096)
+                print(f"{response.status} {response.reason} {content}")
+
+            connect.close()
+            return response.status == 204
+        except HTTPError:
+            pass
+        return False
+
+        
+
 def main():
     '''Demo or get languages, a run of Python3 then C++ then Java'''
     jobe = JobeWrapper('localhost:4000')
