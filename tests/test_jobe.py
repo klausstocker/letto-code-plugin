@@ -56,12 +56,12 @@ class Checker(unittest.TestCase): # do not rename
     def testUpload(self):
         jobe = JobeWrapper('localhost:4000')
         fileId = 'B00WHrZtSjfile1gasdfaserscasdfaserasdfaserqwcasrweas'
-        self.assertIsNone(jobe.put_file(fileId, 'inhalt'))
+        self.assertIsNone(jobe.put_file(fileId, ('inhalt').encode()))
         self.assertTrue(jobe.check_file(fileId))
 
     def testWithFiles(self):
-        files = [('file1', 'The first file\nLine 2'),
-                 ('file2', 'Second file')]
+        files = {'file1': ('The first file\nLine 2').encode(),
+                 'file2': ('Second file').encode()}
         code = """
 print(open('file1').read())
 print(open('file2').read())

@@ -36,7 +36,7 @@ class RunResult():
             return self._outcome, RunResult.outcomes[self._outcome]
         return 2, 'unknown error while running code'
     
-    def success(self)->bool:
+    def success(self) -> bool:
         return self._outcome in [0, 15]
     
     def __init__(self, ro: dict):
@@ -75,10 +75,10 @@ class JobeWrapper():
         self.server = server
 
     @staticmethod
-    def createFiles(files: list[tuple]):
+    def createFiles(files: dict):
         commonId = uuid.uuid4().hex
         filesWithId = []
-        for name, content in files:
+        for name, content in files.items():
             fileId = f'{commonId[:10]}{name}'
             filesWithId.append((fileId, name, content))
         return filesWithId
@@ -149,9 +149,9 @@ class JobeWrapper():
         ret = {lang: version for lang, version in lang_versions}
         return ret
     
-    def put_file(self, file_id: str, contents: str):
+    def put_file(self, file_id: str, contents: bytes):
         ret = None
-        contentsb64 = base64.b64encode(contents.encode('utf8')).decode(encoding='UTF-8')
+        contentsb64 = base64.b64encode(contents).decode()
         data = json.dumps({ 'file_contents' : contentsb64 })
         resource = f'{RESOURCE_BASE}/files/{file_id}'
         headers = {"Content-type": "application/text",
