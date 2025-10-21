@@ -48,10 +48,24 @@
         <input id="file" name="file" type="file" />
         <button id="upload" type="button" onclick="onUpload()" >Upload</button>
     </form>
+    <table>
+        <tbody id="files-table"> 
+             <tr>
+            </tr>
+        </tbody>
+    </table>
     <script>
+        async function remove(filename)
+        {
+            const response = await fetch('/remove/'+filename, {
+                    method: 'GET'
+                });
+            console.log(response);
+            var row = document.getElementById('rowId' + filename);
+            row.parentNode.removeChild(row);
+        }
         async function onUpload()
         {
-            console.log('step 1');
             const form = document.getElementById('uploadForm');
             const formData = new FormData(form);
 
@@ -62,7 +76,19 @@
                 });
                 console.log(response);
                 if (response.ok) {
-                    const data = await response.text();
+                    const data = JSON.parse(await response.text());
+                    if (data.status == 0)
+                    {
+                        let fullpath = document.getElementById('file').value;
+                        var filename = fullpath.replace(/^.*[\\/]/, "").replace(/\.[^/.]+$/, "");
+                        const table = document.getElementById("files-table");
+                        let row = table.insertRow();
+                        row.id = 'rowId' + filename;
+                        let download = row.insertCell(0);
+                        download.innerHTML = '<a href="/download/' + filename + '">' + filename + '</a>';
+                        let del = row.insertCell(1);
+                        del.innerHTML = '<button type="button" onclick=remove("'+ filename +'")>remove</button>';
+                    }
                     console.log(data);
                 } else {
                     console.log('error');

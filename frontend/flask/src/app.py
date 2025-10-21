@@ -79,11 +79,12 @@ def upload():
         filename = file.filename.split('.')[0] if '.' in file.filename else file.filename
         files = session.get('files', {})
         data = file.read()
+        overwrite = filename in files
         files[filename] = data
         session['files'] = files
     except Exception as e:
         return jsonify({'status': 3, 'msg': f'exception uploading: {e}'})
-    return jsonify({'status': 0, 'msg': 'success'})
+    return jsonify({'status': 1, 'msg': 'file exists, overwrite'}) if overwrite else jsonify({'status': 0, 'msg': 'success'})
 
 @app.route('/download/<upload_id>')
 def download(upload_id):
@@ -91,4 +92,13 @@ def download(upload_id):
     if upload_id in files:
         data = files[upload_id]
         return send_file(BytesIO(data), download_name=upload_id, as_attachment=True )
+    return "File not found", 404
+
+@app.route('/remove/<upload_id>')
+def remove(upload_id):
+    files = session.get('files', {})
+    if upload_id in files:
+        files.pop(upload_id)
+        session['files'] = files
+        return "Success", 200
     return "File not found", 404
