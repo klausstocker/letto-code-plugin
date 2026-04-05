@@ -63,8 +63,8 @@ async def run_code(request: Request):
         jobe = JobeWrapper('jobe:80')
         result = jobe.run_test('python3', code, 'test.py', files)
         return JSONResponse({'output': result.__repr__()})
-    except Exception as e:
-        return JSONResponse({'output': f'Error running code: {e}'})
+    except Exception:
+        return JSONResponse({'output': 'Error running code'})
 
 
 @app.post('/lint')
@@ -88,8 +88,8 @@ async def check_code(request: Request):
     try:
         result = checkCode('jobe:80', code, testcode)
         return JSONResponse({'output': result.__repr__()})
-    except Exception as e:
-        return JSONResponse({'output': str(e)})
+    except Exception:
+        return JSONResponse({'output': 'Error checking code'})
 
 
 @app.post('/upload')
@@ -99,10 +99,6 @@ async def upload(request: Request, file: UploadFile = File(None)):
             msg = 'No file part in the form'
             return JSONResponse({'status': 1, 'msg': msg})
 
-        if file.filename == '':
-            msg = 'filename empty'
-            return JSONResponse({'status': 2, 'msg': msg})
-
         filename = file.filename.split('.')[0] if '.' in file.filename else file.filename
         files = request.session.get('files', {})
         data = await file.read()
@@ -110,8 +106,8 @@ async def upload(request: Request, file: UploadFile = File(None)):
         # Store file data as base64 string for JSON-serializable session
         files[filename] = base64.b64encode(data).decode('ascii')
         request.session['files'] = files
-    except Exception as e:
-        return JSONResponse({'status': 3, 'msg': f'exception uploading: {e}'})
+    except Exception:
+        return JSONResponse({'status': 3, 'msg': 'exception uploading file'})
     if overwrite:
         return JSONResponse({'status': 1, 'msg': 'file exists, overwrite'})
     return JSONResponse({'status': 0, 'msg': 'success'})
