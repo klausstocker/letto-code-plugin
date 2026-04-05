@@ -29,7 +29,14 @@ Session(app)
 @app.route('/')
 def index():
     session.clear()
-    return render_template('index.html')
+    context = {
+        'indication': """`
+def calculate_sum(a, b):
+    print('the sum is ' + str(a + b))
+    return a + b
+`"""
+    }
+    return render_template('index.html', **context)
 
 @app.route('/run', methods=['POST'])
 def run_code():
