@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import sys
 import uuid
@@ -29,6 +30,10 @@ except ImportError:
 UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR", "/tmp/uploads"))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+# Only allow alphanumeric characters, underscores, and hyphens in names.
+# This prevents any path traversal since no dots, slashes, or special chars are permitted.
+SAFE_NAME_RE = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9_-]*$')
+
 app = FastAPI()
 
 app.add_middleware(
@@ -51,12 +56,13 @@ app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__
 def _get_session_dir(request: Request) -> Path:
     """Get or create a session-specific upload directory."""
     session_id = request.session.get('session_id')
-    if not session_id or not session_id.isalnum():
+    if not session_id or not SAFE_NAME_RE.match(session_id):
         session_id = uuid.uuid4().hex
         request.session['session_id'] = session_id
-    session_dir = (UPLOAD_DIR / session_id).resolve()
-    # Guard against path traversal via a tampered session_id
-    if not str(session_dir).startswith(str(UPLOAD_DIR.resolve())):
+    session_dir = UPLOAD_DIR / session_id
+    real_dir = os.path.realpath(str(session_dir))
+    real_upload = os.path.realpath(str(UPLOAD_DIR))
+    if not real_dir.startswith(real_upload + os.sep):
         session_id = uuid.uuid4().hex
         request.session['session_id'] = session_id
         session_dir = UPLOAD_DIR / session_id
@@ -65,23 +71,27 @@ def _get_session_dir(request: Request) -> Path:
 
 
 def _safe_path(session_dir: Path, filename: str):
-    """Return a safe file path within session_dir, or None if traversal detected."""
+    """Return a safe file path within session_dir, or None if invalid."""
     safe_name = os.path.basename(filename)
-    if not safe_name or safe_name.startswith('.'):
+    if not safe_name or not SAFE_NAME_RE.match(safe_name):
         return None
-    resolved = (session_dir / safe_name).resolve()
-    if not str(resolved).startswith(str(session_dir.resolve())):
+    candidate = os.path.join(str(session_dir), safe_name)
+    real_candidate = os.path.realpath(candidate)
+    real_session = os.path.realpath(str(session_dir))
+    if not real_candidate.startswith(real_session + os.sep):
         return None
-    return resolved
+    return Path(real_candidate)
 
 
 @app.get('/', response_class=HTMLResponse)
 async def index(request: Request):
     session_id = request.session.get('session_id')
-    if session_id:
+    if session_id and SAFE_NAME_RE.match(session_id):
         session_dir = UPLOAD_DIR / session_id
-        if session_dir.exists():
-            shutil.rmtree(session_dir, ignore_errors=True)
+        real_dir = os.path.realpath(str(session_dir))
+        real_upload = os.path.realpath(str(UPLOAD_DIR))
+        if real_dir.startswith(real_upload + os.sep) and session_dir.exists():
+            shutil.rmtree(str(session_dir), ignore_errors=True)
     request.session.clear()
     questionConfig = QuestionConfigDto.example()
     return templates.TemplateResponse(request, 'index.html', questionConfig.model_dump())
