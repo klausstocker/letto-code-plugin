@@ -101,7 +101,7 @@ class UploadResponse(BaseModel):
     """Response body after a file upload attempt."""
     status: int = Field(
         ...,
-        description="Status code: 0 = success, 1 = file overwritten or missing, 3 = invalid filename or error",
+        description="Status code: 0 = success, 1 = no file provided or file overwritten, 3 = invalid filename or error",
     )
     msg: str = Field(..., description="Human-readable status message")
 
