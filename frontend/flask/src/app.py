@@ -11,6 +11,7 @@ try:
     from shared.jobe_wrapper import *
     from shared.lint import *
     from shared.check import *
+    from shared.question_config import QuestionConfigDto, EvalConfigDto
 except ImportError:
     # need to append paths
     sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
@@ -18,6 +19,7 @@ except ImportError:
     from shared.jobe_wrapper import *
     from shared.lint import *
     from shared.check import *
+    from shared.question_config import QuestionConfigDto, EvalConfigDto
 
 app = Flask(__name__)
 app.config["SESSION_PERMANENT"] = False     # Sessions expire when the browser is closed
@@ -29,14 +31,8 @@ Session(app)
 @app.route('/')
 def index():
     session.clear()
-    context = {
-        'indication': """`
-def calculate_sum(a, b):
-    print('the sum is ' + str(a + b))
-    return a + b
-`"""
-    }
-    return render_template('index.html', **context)
+    questionConfig = QuestionConfigDto.example()
+    return render_template('index.html', **questionConfig.model_dump())
 
 @app.route('/run', methods=['POST'])
 def run_code():
