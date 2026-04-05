@@ -1,5 +1,6 @@
 /backend/*/log
 /frontend/*/log
+/frontend/flask/src/flask_session
 /.venv/
 /.traefik/public-certificates/
 /.portainer_data/
