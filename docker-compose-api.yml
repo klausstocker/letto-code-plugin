@@ -1,0 +1,20 @@
+services:
+  flet:
+    extends:
+      file: docker-compose-python_template.yml
+      service: python
+    build:
+      context: ./api
+    container_name: api
+    restart: always
+    ports:
+      - "${PORT_API}:${PORT_API}"
+    volumes:
+      - ./api/log:/usr/src/app/log
+      - ./api/src:/usr/src/app/src
+    command:
+      - /bin/sh
+      - -c
+      - |
+        cd /usr/src/app/src
+        uvicorn app:app --host 0.0.0.0 --port ${PORT_API} --workers 4
