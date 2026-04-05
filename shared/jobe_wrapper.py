@@ -79,7 +79,7 @@ class JobeWrapper():
         commonId = uuid.uuid4().hex
         filesWithId = []
         for name, content in files.items():
-            sanitized = name.replace('.', '_')
+            sanitized = name.replace('.', '__')
             fileId = f'{commonId[:10]}{sanitized}'
             filesWithId.append((fileId, name, content))
         return filesWithId
