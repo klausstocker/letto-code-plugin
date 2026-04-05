@@ -46,7 +46,7 @@
         </button>
     </div>
     <form action="" method="" id="uploadForm" enctype="multipart/form-data">
-        <label for="file">File (extensions are removed)</label>
+        <label for="file">File</label>
         <input id="file" name="file" type="file" />
         <button id="upload" type="button" onclick="onUpload()">Upload</button>
     </form>
@@ -79,7 +79,7 @@
                     const data = JSON.parse(await response.text());
                     if (data.status == 0) {
                         let fullpath = document.getElementById('file').value;
-                        var filename = fullpath.replace(/^.*[\\/]/, "").replace(/\.[^/.]+$/, "");
+                        var filename = fullpath.replace(/^.*[\\/]/, "");
                         const table = document.getElementById("files-table");
                         let row = table.insertRow();
                         row.id = 'rowId' + filename;

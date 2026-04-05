@@ -1,3 +1,4 @@
+import mimetypes
 import os
 import re
 import shutil
@@ -30,9 +31,10 @@ except ImportError:
 UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR", "/tmp/uploads"))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-# Only allow alphanumeric characters, underscores, and hyphens in names.
-# This prevents any path traversal since no dots, slashes, or special chars are permitted.
-SAFE_NAME_RE = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9_-]*$')
+# Allow alphanumeric characters, underscores, hyphens, and an optional file extension.
+# The extension is a single dot followed by one or more alphanumeric characters.
+# This prevents path traversal since ".." cannot match (requires chars after the dot).
+SAFE_NAME_RE = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9_-]*(\.[a-zA-Z0-9]+)?$')
 
 app = FastAPI()
 
@@ -147,7 +149,7 @@ async def upload(request: Request, file: UploadFile = File(None)):
             msg = 'No file part in the form'
             return JSONResponse({'status': 1, 'msg': msg})
 
-        raw_name = file.filename.split('.')[0] if '.' in file.filename else file.filename
+        raw_name = os.path.basename(file.filename)
         session_dir = _get_session_dir(request)
         filepath = _safe_path(session_dir, raw_name)
         if filepath is None:
@@ -167,9 +169,12 @@ async def download(request: Request, upload_id: str):
     session_dir = _get_session_dir(request)
     filepath = _safe_path(session_dir, upload_id)
     if filepath is not None and filepath.exists() and filepath.is_file():
+        mime_type, _ = mimetypes.guess_type(filepath.name)
+        if mime_type is None:
+            mime_type = "application/octet-stream"
         return StreamingResponse(
             BytesIO(filepath.read_bytes()),
-            media_type="application/octet-stream",
+            media_type=mime_type,
             headers={"Content-Disposition": f'attachment; filename="{filepath.name}"'}
         )
     return PlainTextResponse("File not found", status_code=404)
