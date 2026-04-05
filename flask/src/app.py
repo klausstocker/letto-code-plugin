@@ -62,7 +62,7 @@ def _get_session_dir(request: Request) -> Path:
     session_dir = UPLOAD_DIR / session_id
     real_dir = os.path.realpath(str(session_dir))
     real_upload = os.path.realpath(str(UPLOAD_DIR))
-    if not real_dir.startswith(real_upload + os.sep):
+    if real_dir == real_upload or not real_dir.startswith(real_upload + os.sep):
         session_id = uuid.uuid4().hex
         request.session['session_id'] = session_id
         session_dir = UPLOAD_DIR / session_id
@@ -78,7 +78,7 @@ def _safe_path(session_dir: Path, filename: str):
     candidate = os.path.join(str(session_dir), safe_name)
     real_candidate = os.path.realpath(candidate)
     real_session = os.path.realpath(str(session_dir))
-    if not real_candidate.startswith(real_session + os.sep):
+    if real_candidate == real_session or not real_candidate.startswith(real_session + os.sep):
         return None
     return Path(real_candidate)
 
