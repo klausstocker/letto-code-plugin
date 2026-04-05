@@ -1,8 +1,9 @@
-import base64
 import os
+import shutil
 import sys
 import uuid
 from io import BytesIO
+from pathlib import Path
 
 from fastapi import FastAPI, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,6 +26,9 @@ except ImportError:
     from shared.check import *
     from shared.question_config import QuestionConfigDto, EvalConfigDto
 
+UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR", "/tmp/uploads"))
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
 app = FastAPI()
 
 app.add_middleware(
@@ -37,15 +41,47 @@ app.add_middleware(
 
 app.add_middleware(
     SessionMiddleware,
-    secret_key=os.environ.get("SECRET_KEY", uuid.uuid4().hex),
+    secret_key=os.environ.get("SECRET_KEY", "change-me-in-production"),
 )
 
 templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "templates"))
 app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")
 
 
+def _get_session_dir(request: Request) -> Path:
+    """Get or create a session-specific upload directory."""
+    session_id = request.session.get('session_id')
+    if not session_id or not session_id.isalnum():
+        session_id = uuid.uuid4().hex
+        request.session['session_id'] = session_id
+    session_dir = (UPLOAD_DIR / session_id).resolve()
+    # Guard against path traversal via a tampered session_id
+    if not str(session_dir).startswith(str(UPLOAD_DIR.resolve())):
+        session_id = uuid.uuid4().hex
+        request.session['session_id'] = session_id
+        session_dir = UPLOAD_DIR / session_id
+    session_dir.mkdir(parents=True, exist_ok=True)
+    return session_dir
+
+
+def _safe_path(session_dir: Path, filename: str):
+    """Return a safe file path within session_dir, or None if traversal detected."""
+    safe_name = os.path.basename(filename)
+    if not safe_name or safe_name.startswith('.'):
+        return None
+    resolved = (session_dir / safe_name).resolve()
+    if not str(resolved).startswith(str(session_dir.resolve())):
+        return None
+    return resolved
+
+
 @app.get('/', response_class=HTMLResponse)
 async def index(request: Request):
+    session_id = request.session.get('session_id')
+    if session_id:
+        session_dir = UPLOAD_DIR / session_id
+        if session_dir.exists():
+            shutil.rmtree(session_dir, ignore_errors=True)
     request.session.clear()
     questionConfig = QuestionConfigDto.example()
     return templates.TemplateResponse(request, 'index.html', questionConfig.model_dump())
@@ -56,10 +92,12 @@ async def run_code(request: Request):
     body = await request.json()
     code = body['code']
     try:
-        session_files = request.session.get('files', {})
-        # Decode base64 file data back to bytes
-        decoded_files = {k: base64.b64decode(v) for k, v in session_files.items()}
-        files = JobeWrapper.createFiles(decoded_files)
+        session_dir = _get_session_dir(request)
+        file_data = {}
+        for filepath in session_dir.iterdir():
+            if filepath.is_file():
+                file_data[filepath.name] = filepath.read_bytes()
+        files = JobeWrapper.createFiles(file_data)
         jobe = JobeWrapper('jobe:80')
         result = jobe.run_test('python3', code, 'test.py', files)
         return JSONResponse({'output': result.__repr__()})
@@ -99,13 +137,14 @@ async def upload(request: Request, file: UploadFile = File(None)):
             msg = 'No file part in the form'
             return JSONResponse({'status': 1, 'msg': msg})
 
-        filename = file.filename.split('.')[0] if '.' in file.filename else file.filename
-        files = request.session.get('files', {})
+        raw_name = file.filename.split('.')[0] if '.' in file.filename else file.filename
+        session_dir = _get_session_dir(request)
+        filepath = _safe_path(session_dir, raw_name)
+        if filepath is None:
+            return JSONResponse({'status': 3, 'msg': 'invalid filename'})
+        overwrite = filepath.exists()
         data = await file.read()
-        overwrite = filename in files
-        # Store file data as base64 string for JSON-serializable session
-        files[filename] = base64.b64encode(data).decode('ascii')
-        request.session['files'] = files
+        filepath.write_bytes(data)
     except Exception:
         return JSONResponse({'status': 3, 'msg': 'exception uploading file'})
     if overwrite:
@@ -115,22 +154,22 @@ async def upload(request: Request, file: UploadFile = File(None)):
 
 @app.get('/download/{upload_id}')
 async def download(request: Request, upload_id: str):
-    files = request.session.get('files', {})
-    if upload_id in files:
-        data = base64.b64decode(files[upload_id])
+    session_dir = _get_session_dir(request)
+    filepath = _safe_path(session_dir, upload_id)
+    if filepath is not None and filepath.exists() and filepath.is_file():
         return StreamingResponse(
-            BytesIO(data),
+            BytesIO(filepath.read_bytes()),
             media_type="application/octet-stream",
-            headers={"Content-Disposition": f'attachment; filename="{upload_id}"'}
+            headers={"Content-Disposition": f'attachment; filename="{filepath.name}"'}
         )
     return PlainTextResponse("File not found", status_code=404)
 
 
 @app.get('/remove/{upload_id}')
 async def remove(request: Request, upload_id: str):
-    files = request.session.get('files', {})
-    if upload_id in files:
-        files.pop(upload_id)
-        request.session['files'] = files
+    session_dir = _get_session_dir(request)
+    filepath = _safe_path(session_dir, upload_id)
+    if filepath is not None and filepath.exists() and filepath.is_file():
+        filepath.unlink()
         return PlainTextResponse("Success", status_code=200)
     return PlainTextResponse("File not found", status_code=404)
