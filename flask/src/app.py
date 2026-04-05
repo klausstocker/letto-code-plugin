@@ -31,10 +31,10 @@ except ImportError:
 UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR", "/tmp/uploads"))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-# Allow alphanumeric characters, underscores, hyphens, and an optional file extension.
-# The extension is a single dot followed by one or more alphanumeric characters.
-# This prevents path traversal since ".." cannot match (requires chars after the dot).
-SAFE_NAME_RE = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9_-]*(\.[a-zA-Z0-9]+)?$')
+# Allow alphanumeric characters, underscores, hyphens, and dots in names.
+# Must start with an alphanumeric character (blocks "..", ".hidden", etc.).
+# _safe_path() additionally rejects names containing ".." to prevent path traversal.
+SAFE_NAME_RE = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9_.-]*$')
 
 app = FastAPI()
 
@@ -75,7 +75,7 @@ def _get_session_dir(request: Request) -> Path:
 def _safe_path(session_dir: Path, filename: str):
     """Return a safe file path within session_dir, or None if invalid."""
     safe_name = os.path.basename(filename)
-    if not safe_name or not SAFE_NAME_RE.match(safe_name):
+    if not safe_name or '..' in safe_name or not SAFE_NAME_RE.match(safe_name):
         return None
     candidate = os.path.join(str(session_dir), safe_name)
     real_candidate = os.path.realpath(candidate)
