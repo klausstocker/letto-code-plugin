@@ -4,20 +4,14 @@ services:
       file: docker-compose-python_template.yml
       service: python
     build:
-      context: ./frontend/flask
+      context: ./flask
     container_name: flask-app
     restart: always
     ports:
       - "${PORT_FLASK}:${PORT_FLASK}"
     volumes:
-      - ./frontend/flask/log:/usr/src/app/log
-      - ./frontend/flask/src:/usr/src/app/src:volume-nocopy
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.flask-app.rule=Host(`${SUBDOMAIN_FLASK}${DOMAIN}`)"
-      - "traefik.http.routers.flask-app.entrypoints=websecure"
-      - "traefik.http.services.flask-app.loadbalancer.server.port=${PORT_FLASK}"
-      - "traefik.http.routers.flask-app.tls.certresolver=letsencrypt"
+      - ./flask/log:/usr/src/app/log
+      - ./flask/src:/usr/src/app/src:volume-nocopy
     command:
       - /bin/sh
       - -c
