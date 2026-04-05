@@ -1,5 +1,5 @@
 include:
-  - docker-compose-flask-app.yml
+  - docker-compose-api.yml
   - docker-compose-jobe.yml
 
 networks:

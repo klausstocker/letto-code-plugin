@@ -193,7 +193,6 @@ def main():
     print("Supported languages:")
     for lang, version in jobe.languages().items():
         print("    {}: {}".format(lang, version))
-    print()
     print("Running python...")
     result_obj = jobe.run_test('python3', PYTHON_CODE, 'test.py')
     print(result_obj)
